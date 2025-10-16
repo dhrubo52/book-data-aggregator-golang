@@ -6,18 +6,57 @@ import (
 	"io"
 	"encoding/json"
 	"strconv"
+	"sync"
 )
 
-// We need an empty interface type because the json response
-// can have multiple types of values
-type jsonData interface{}
+type jsonData map[string]interface{}
 
 type result struct {
 	TotalBooks int
 	EarliestPublicationYear int
 	LatestPublicationYear int
-	Languages []string
-	Authors []string
+	Authors map[string]bool
+	Languages map[string]bool
+	mu sync.Mutex
+}
+
+func calculateStats(res *result, data *jsonData) string {
+	if numFound, ok := (*data)["numFound"].(float64); ok{
+		res.TotalBooks = int(numFound)
+	} else {
+		return "ERROR"
+	}
+	
+
+	books, ok := (*data)["docs"].([]interface{})
+	if !ok {
+		return "ERROR"
+	}
+
+	for _, book := range books {
+		if bookData, ok := book.(map[string]interface{}); ok {
+			if authorNames, exists := bookData["author_name"]; exists {
+				if authorNamesSlice, ok := authorNames.([]interface{}); ok {
+					for _, author := range authorNamesSlice {
+						if author, ok := author.(string); ok {
+							(*res).Authors[author] = true
+						} else {
+							continue;
+						}
+					}
+				}
+			}
+
+			// if languages, exists := bookData["language"]; exists {
+			// 	if languages, ok := languages.([]string); ok {
+
+			// 	}
+			// }
+		}
+	}
+	// fmt.Printf("%+v\n", *res)
+
+	return "SUCCESS"
 }
 
 func (res *result) dataRequest(title string, pageNumber int) {
@@ -43,7 +82,14 @@ func (res *result) dataRequest(title string, pageNumber int) {
 		return
 	}
 
-	fmt.Printf("%+v", j)
+	// var totalData map[string]interface{}
+	// if totalData, ok := j.(map[string]interface{}); !ok {
+	// 	return
+	// }
+
+	res.mu.Lock()
+	defer res.mu.Unlock()
+	calculateStats(res, &j)
 }
 
 
@@ -63,7 +109,12 @@ func getData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var res *result
+	res := &result{
+		EarliestPublicationYear: 10000,
+		LatestPublicationYear: -1,
+		Authors: make(map[string]bool),
+		Languages: make(map[string]bool),
+	}
 
 	res.dataRequest(title, page)	
 	
