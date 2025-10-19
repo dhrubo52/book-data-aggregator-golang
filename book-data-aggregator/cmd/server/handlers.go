@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"io"
 	"encoding/json"
-	"strconv"
 	"sync"
 )
 
@@ -20,17 +19,25 @@ type result struct {
 	mu sync.Mutex
 }
 
-func calculateStats(res *result, data *jsonData) string {
+type responseDataStruct struct {
+	TotalBooks int					`json:"totalBooks"`
+	EarliestPublicationYear int		`json:"earliestPublicationYear"`
+	LatestPublicationYear int		`json:"latestPublicationYear"`
+	Authors []string				`json:"authors"`
+	Languages []string				`json:"languages"`
+}
+
+func calculateStats(res *result, data *jsonData) {
 	if numFound, ok := (*data)["numFound"].(float64); ok{
 		res.TotalBooks = int(numFound)
 	} else {
-		return "ERROR"
+		return 
 	}
 	
 
 	books, ok := (*data)["docs"].([]interface{})
 	if !ok {
-		return "ERROR"
+		return
 	}
 
 	for _, book := range books {
@@ -74,12 +81,13 @@ func calculateStats(res *result, data *jsonData) string {
 			}
 		}
 	}
-	fmt.Printf("%v\n", *res)
 
-	return "SUCCESS"
+	return
 }
 
-func (res *result) dataRequest(title string, pageNumber int) {
+func (res *result) dataRequest(wg *sync.WaitGroup, title string, pageNumber int) {
+	defer wg.Done()
+
 	response, err := http.Get(fmt.Sprintf("https://openlibrary.org/search.json?title=%s&limit=100&page=%d", title, pageNumber))
 	if err != nil {
 		fmt.Println(err)
@@ -117,12 +125,6 @@ func getData(w http.ResponseWriter, r *http.Request) {
 	queryParams := r.URL.Query()
 
 	title := queryParams.Get("title")
-	page, err := strconv.Atoi(queryParams.Get("page"))
-
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
 
 	res := &result{
 		EarliestPublicationYear: 10000,
@@ -131,6 +133,36 @@ func getData(w http.ResponseWriter, r *http.Request) {
 		Languages: make(map[string]bool),
 	}
 
-	res.dataRequest(title, page)	
+	var wg sync.WaitGroup
+	for i:=1; i<=5; i++ {
+		wg.Add(1)
+		go res.dataRequest(&wg, title, i)
+	}
+
+	wg.Wait()
+
+	var authorList, languageList []string
 	
+	for author := range res.Authors {
+		authorList = append(authorList, author)
+	}
+
+	for language := range res.Languages {
+		languageList = append(languageList, language)
+	}
+
+	responseData :=  responseDataStruct{
+		TotalBooks: res.TotalBooks,
+		EarliestPublicationYear: res.EarliestPublicationYear,
+		LatestPublicationYear: res.LatestPublicationYear,
+		Authors: authorList,
+		Languages: languageList,
+	}
+
+	responseJsonDataBytes, err := json.Marshal(responseData)
+	if err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+	}
+	
+	w.Write(responseJsonDataBytes)
 }
