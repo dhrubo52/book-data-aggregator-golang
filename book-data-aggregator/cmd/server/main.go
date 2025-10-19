@@ -14,7 +14,8 @@ func main() {
 	mux.HandleFunc("/", home)
 	mux.HandleFunc("/get-data", getData)
 
-	fmt.Println("Starting Server at 127.0.0.1:8000")
+	fmt.Printf("Starting Server at 127.0.0.1:8000\n")
+	fmt.Printf("Visit: 127.0.0.1:8000\n")
 
 	err := http.ListenAndServe("127.0.0.1:8000", mux)
 	if err!=nil {

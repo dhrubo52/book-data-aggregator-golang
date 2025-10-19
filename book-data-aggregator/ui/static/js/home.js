@@ -22,7 +22,7 @@ const getData = () => {
     let keyMap = {
         totalBooks: "Total number books in Open Library that has similar title",
         earliestPublicationYear: "The earliest publication year among the books",
-        latestPublicationYear: "The lateset publication year among the books",
+        latestPublicationYear: "The latest publication year among the books",
         authors: "List of all authors of the books",
         languages: "List of languages of the books"
     }
