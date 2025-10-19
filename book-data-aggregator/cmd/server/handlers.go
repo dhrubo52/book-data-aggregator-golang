@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"io"
 	"encoding/json"
 	"sync"
+	"strconv"
 )
 
 type jsonData map[string]interface{}
@@ -26,6 +28,19 @@ type responseDataStruct struct {
 	Authors []string				`json:"authors"`
 	Languages []string				`json:"languages"`
 }
+
+
+
+func home(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
+	http.ServeFile(w, r, "./ui/html/home.html")
+}
+
+
 
 func calculateStats(res *result, data *jsonData) {
 	if numFound, ok := (*data)["numFound"].(float64); ok{
@@ -88,7 +103,14 @@ func calculateStats(res *result, data *jsonData) {
 func (res *result) dataRequest(wg *sync.WaitGroup, title string, pageNumber int) {
 	defer wg.Done()
 
-	response, err := http.Get(fmt.Sprintf("https://openlibrary.org/search.json?title=%s&limit=100&page=%d", title, pageNumber))
+	params := url.Values{}
+
+	params.Add("title", title)
+	params.Add("page", strconv.Itoa(pageNumber))
+
+	queryString := params.Encode()
+
+	response, err := http.Get(fmt.Sprintf("https://openlibrary.org/search.json?%s", queryString))
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -127,6 +149,7 @@ func getData(w http.ResponseWriter, r *http.Request) {
 	title := queryParams.Get("title")
 
 	res := &result{
+		TotalBooks: 0,
 		EarliestPublicationYear: 10000,
 		LatestPublicationYear: -1,
 		Authors: make(map[string]bool),

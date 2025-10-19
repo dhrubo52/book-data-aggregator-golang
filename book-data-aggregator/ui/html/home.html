@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>
+            Book Data
+        </title>
+        <link rel="stylesheet" href="/static/css/home.css">
+    </head>
+    <body>
+        <div class="main-container">
+            <h2>
+                Enter Your Book Title
+            </h2>
+            
+            <input id="title-input" class="title-input"></input>
+            
+            <button class="submit-btn" onClick="getData()">
+                Submit
+            </button>
+            
+            <h4 class="result-header">Data of maximum 500 books</h4>
+            <h4 id="loading" hidden>Fetching Data...</h4>
+            <div id="result-text" class="result-container">
+
+            </div>
+        </div>
+
+        <script src="/static/js/home.js"></script>
+    </body>
+</html>
